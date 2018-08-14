@@ -18,13 +18,15 @@ set(BINARY       "acorn")
 
 # Source files to be linked with OS library parts to form bootable image
 set(SOURCES
-  service.cpp fs/acorn_fs.cpp
+  service.cpp src/chan.cpp src/routes.cpp src/database.cpp src/register.cpp fs/acorn_fs.cpp ../proto/build/cpp/account.pb.cc
   )
 
 # To add your own include paths:
 set(LOCAL_INCLUDES
   "app/"
   "."
+  "include/"
+  "../proto/build/cpp/"
   ${BUCKET_DIR}
   )
 
