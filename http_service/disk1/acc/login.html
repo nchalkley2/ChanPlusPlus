@@ -76,10 +76,10 @@ a {
 </head>
 <body>
 <div class = "register-form">
-  <form form id="login-register" name="login-register" method="post" action="/acc/register">
+  <form form id="login-register" name="login-register" method="post" action="/acc/login">
     <div class="container">
-      <h1>Register</h1>
-      <p>Please fill in this form to create an account.</p>
+      <h1>Login</h1>
+      <p>Please fill in this form to login.</p>
       <hr>
     
       <label for="username"><b>Username</b></label>
@@ -88,15 +88,11 @@ a {
       <label for="password"><b>Password</b></label>
       <input type="password" placeholder="Enter Password" name="password" required>
     
-      <label for="password-repeat"><b>Repeat Password</b></label>
-      <input type="password" placeholder="Repeat Password" name="password-repeat" required>
-      <hr>
-    
-      <button type="submit" class="registerbtn">Register</button>
+      <button type="submit" class="registerbtn">Login</button>
     </div>
     
     <div class="container signin">
-      <p>Already have an account? <a href="#">Sign in</a>.</p>
+      <p>Don't have an account? <a href="/acc/register">Register</a>.</p>
     </div>
   </form>
 </div>
@@ -104,7 +100,7 @@ a {
 		$('#login-register').submit(function(e){
 			e.preventDefault();
 			$.ajax({
-				url:'/acc/register',
+				url:'/acc/login',
 				type:'post',
 				data:$('#login-register').serialize(),
 				success:function(response){

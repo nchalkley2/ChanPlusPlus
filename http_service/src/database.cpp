@@ -1,40 +1,141 @@
 #include "database.hpp"
+#include "print.hpp"
+#include <net/http/client.hpp>
 #include <net/inet4>
 #include <net/socket.hpp>
+#include <net/super_stack.hpp>
 
 #include "account.pb.h"
+#include <optional>
 
+#include <acorn>
+
+#include "byte_helpers.hpp"
+#include <type_traits>
+
+// If this is 1 then it will just skip waiting for the database connection
+// when the program starts
+#define DATABASE_TEST_MODE 0
 namespace chan::database
 {
-void
-open(net::Inet<net::IP4>& inet)
-{
-	using namespace net;
-	using Connection_ptr = net::tcp::Connection_ptr;
-	using Disconnect     = net::tcp::Connection::Disconnect;
+	static http::Basic_client* client;
+	static net::Socket db_addr({ 10, 0, 0, 131 }, 5000);
+	// True if the database is connected
+	static bool connected = false;
 
-	Socket python_server{ { 10, 0, 0, 131 }, 5347 };
+	// A unique id for each message sent
+	static uint64_t message_id;
 
-	printf("Trying to connect...\n");
-	Connection_ptr db_server = inet.tcp().connect(python_server);
-	db_server->on_connect([](Connection_ptr db_server) {
-		printf("Connected!\n");
+	void
+	open(net::Inet<net::IP4>& inet, const delegate<void()> cb)
+	{
+		using namespace net;
+		using Connection_ptr = net::tcp::Connection_ptr;
+		using Disconnect     = net::tcp::Connection::Disconnect;
 
-		RegisterAccountReq request;
-		request.set_username("Nick");
-		request.set_password("nick1234");
+#if (DATABASE_TEST_MODE == 0)
+		client = new http::Basic_client{ inet.tcp() };
 
-		db_server->write(request.SerializeAsString());
+		if (cb)
+			cb();
+#else  // DATABASE_TEST_MODE == 1
+		printf("Skipping database connection...\n");
+		connected = true;
 
-		db_server->on_read(1024, [](auto buf) {
-			std::string data{ (char*)buf->data(), buf->size() };
-			printf("Recieved data!: %s\n", data.c_str());
-		});
+		if (cb)
+			cb();
+#endif // DATABASE_TEST_MODE == 0
+	}
 
-		db_server->on_disconnect([db_server](auto, auto) {
-			printf("Disconnected\n");
-			db_server->close();
-		});
-	});
-}
+	namespace account
+	{
+		void
+		create(const std::string& username, const std::string& password,
+			   const create_callback cb)
+		{
+			const auto path = "register?username=" + username
+							  + "&password=" + password;
+
+			const auto db_cb = http::Response_handler::make_packed(
+				[cb, username, path](http::Error err, http::Response_ptr res,
+									 http::Connection&) {
+
+					if (not err)
+					{
+						if (res->status_code() == http::OK)
+						{
+							if (cb)
+								cb(true, username, "");
+						}
+						else
+						{
+							if (cb)
+								cb(false, username, res->body().data());
+						}
+					}
+					else
+					{
+						print(path, " - No response: ", err.to_string(), "\n");
+						print("Make sure the virtual machine can reach "
+							  "internet.\n");
+
+						if (cb)
+							cb(false, username,
+							   "Failed to connect to database.");
+					}
+				});
+
+			client->get(db_addr, path, {}, db_cb);
+		}
+
+		void
+		login(const std::string& username, const std::string& password,
+			  const login_callback cb)
+		{
+			const auto path = "login?username=" + username
+							  + "&password=" + password;
+
+			const auto db_cb = http::Response_handler::make_packed(
+				[cb, username, path](http::Error err, http::Response_ptr res,
+									 http::Connection&) {
+
+					// An ugly wrapper for calling the login_callback with
+					// default args
+					const auto call_cb
+						= [cb](bool successful, std::string err = "",
+							   std::pair<std::string, std::string> cookies
+							   = std::pair<std::string, std::string>("", "")) {
+							  if (cb)
+								  cb(successful, err, cookies);
+						  };
+
+					if (not err)
+					{
+						if (res->status_code() == http::OK)
+						{
+							const auto cookies
+								= std::pair<std::string, std::string>(
+									"Set-Cookies",
+									res->header().value(http::header::Set_Cookie));
+
+							call_cb(true, "", cookies);
+						}
+						else
+						{
+							call_cb(false, "Username or password is incorrect.");
+						}
+					}
+					else
+					{
+						print(path, " - No response: ", err.to_string(), "\n");
+						print("Make sure the virtual machine can reach "
+							  "internet.\n");
+
+						call_cb(false, "Failed to connect to database.");
+					}
+				});
+
+			client->get(db_addr, path, {}, db_cb);
+		}
+	}
 }

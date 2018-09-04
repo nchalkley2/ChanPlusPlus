@@ -3,4 +3,5 @@ build
 trash
 disk2
 
+compile_commands.json
 *.swp

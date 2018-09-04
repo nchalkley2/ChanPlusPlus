@@ -4,21 +4,26 @@
 #include <acorn>
 #include <net/inet4>
 
-static std::unique_ptr<mana::Server> server_;
+#include <functional>
+
+static std::unique_ptr<mana::Server> server;
 static fs::Disk_ptr disk;
 
 namespace chan
 {
+
 fs::Disk_ptr
 disk()
 {
 	return ::disk;
 }
 
-using namespace acorn;
-void start(net::Inet<net::IP4>& inet)
+void
+start(net::Inet<net::IP4>& inet)
 {
-	const auto router_init = [&inet]()
+	// These callbacks are in reverse order, so the last one is at the top of
+	// this file
+	auto router_init = [&inet]()
 	{
 		mana::Router router;
 		for (const auto& [method, route, func] : get_routes())
@@ -29,25 +34,30 @@ void start(net::Inet<net::IP4>& inet)
 		INFO("Router", "Registered routes:\n%s", router.to_string().c_str());
 
 		/** SERVER SETUP **/
-		server_ = std::make_unique<mana::Server>(inet.tcp());
+		server = std::make_unique<mana::Server>(inet.tcp());
 		// set routes and start listening
-		server_->set_routes(router).listen(80);
-
-		database::open(inet);
-
+		server->set_routes(router).listen(80);
 	};
 
+	// This opens the database and once it has connected it will call
+	// router_init
+	auto db_init = [&inet, router_init]()
+	{
+		chan::database::open(inet, router_init);
+	};
+
+	// Init the disk first
 	::disk = fs::shared_memdisk();
-	::disk->init_fs([router_init](fs::error_t err, auto& fs)
+	::disk->init_fs([db_init](fs::error_t err, auto& fs)
 	{
 		if (err)
 		{
 			panic("Could not mount filesystem...\n");
 		}
 
-		list_static_content(fs);
+		acorn::list_static_content(fs);
 
-		router_init();
+		db_init();
 	});
 }
 }

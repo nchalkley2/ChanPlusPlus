@@ -1,6 +1,5 @@
 #include "chan.hpp"
 #include "routes.hpp"
-#include "register.hpp"
 #include <vector>
 
 inline void
@@ -31,12 +30,18 @@ get_routes()
 	return std::vector<route>{
 		route(m::GET, "/",
 			  [](auto, auto res) { async_send_file(res, "/index.html"); }),
-
+		
+		// Register routes
 		route(m::POST, "/acc/register", routes::acc_register),
-
 		route(
 			m::GET, "/acc/register",
-			[](auto, auto res) { async_send_file(res, "/acc/register.html"); })
+			[](auto, auto res) { async_send_file(res, "/acc/register.html"); }),
+
+		// Login routes
+		route(m::POST, "/acc/login", routes::acc_login),
+		route(
+			m::GET, "/acc/login",
+			[](auto, auto res) { async_send_file(res, "/acc/login.html"); }),
 	};
 }
 }
