@@ -29,7 +29,7 @@ namespace chan::routes
 
 
 			using pair_t = std::pair<std::string, std::string>;
-			auto pos = cookie.find('=');
+			const auto pos = cookie.find('=');
 			if (pos not_eq std::string::npos)
 			{
 				pair_t kv(cookie.substr(0, pos), cookie.substr(pos + 1));
@@ -49,8 +49,10 @@ namespace chan::routes
 	acc_login(Request_ptr req, Response_ptr res)
 	{
 		http::Request src = req->source();
-		auto username     = uri::decode(src.post_value("username"));
-		auto password     = uri::decode(src.post_value("password"));
+		const auto username     = uri::decode(src.post_value("username"));
+		const auto password     = uri::decode(src.post_value("password"));
+
+		print(src.to_string(), "\n");
 
 		database::account::login(
 			username, password,
@@ -60,16 +62,18 @@ namespace chan::routes
 				{
 					res->source().add_body("Succesfully logged in.");
 					res->source().set_status_code(http::OK);
-					print("test1\n");
-					const auto cookie_map = parse_cookies(cookies.second);
 
+					const auto cookie_map = parse_cookies(cookies.second);
 					for (const auto& [k, v] : cookie_map)
 					{
-						print("k: ", k, "v: ", v, "\n");
+						print("k: ", k, " v: ", v, "\n");
+						if (k == "session_id")
+						{
+							auto session_id = http::Cookie(k, v);
+							res->cookie(session_id);
+						}
 					}
-
-					res->cookie(http::Cookie("TST", "test"));
-					print("test2\n");
+					
 					res->send();
 				}
 				else

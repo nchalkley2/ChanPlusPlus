@@ -5,7 +5,6 @@
 #include <net/socket.hpp>
 #include <net/super_stack.hpp>
 
-#include "account.pb.h"
 #include <optional>
 
 #include <acorn>
@@ -21,17 +20,11 @@ namespace chan::database
 	static http::Basic_client* client;
 	static net::Socket db_addr({ 10, 0, 0, 131 }, 5000);
 	// True if the database is connected
-	static bool connected = false;
-
-	// A unique id for each message sent
-	static uint64_t message_id;
 
 	void
 	open(net::Inet<net::IP4>& inet, const delegate<void()> cb)
 	{
 		using namespace net;
-		using Connection_ptr = net::tcp::Connection_ptr;
-		using Disconnect     = net::tcp::Connection::Disconnect;
 
 #if (DATABASE_TEST_MODE == 0)
 		client = new http::Basic_client{ inet.tcp() };

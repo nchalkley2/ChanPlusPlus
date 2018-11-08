@@ -24,8 +24,8 @@ set(SOURCES
   src/database.cpp
   src/register.cpp
   src/login.cpp
+  src/mainpage.cpp
   fs/acorn_fs.cpp
-  ../proto/build/cpp/account.pb.cc
   )
 
 # To add your own include paths:
@@ -33,7 +33,6 @@ set(LOCAL_INCLUDES
   "app/"
   "."
   "include/"
-  "../proto/build/cpp/"
   ${BUCKET_DIR}
   )
 
@@ -52,7 +51,6 @@ endif()
 
 set(LIBRARIES
   "libmana.a"
-  "libprotobuf.a"
   )
 
 # include service build script
